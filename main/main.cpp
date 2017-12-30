@@ -30,6 +30,7 @@ void act();
 void printmenulist();
 void homing ();
 void SDselect ();
+void unlock ();
 
 // key callback
 void upCallback();
@@ -77,17 +78,18 @@ enum controlState
 /**  **/
 
 // typedef bool submenu_t;
+//子目錄
 typedef struct {
     char title[LCD_COLS+1];
     void* pointto;
     bool hasSubmenu;
 }menulist;
-
+//目錄
 PROGMEM const menulist menu_0[] = {
 {"Status page"          , (void*)NULL     , false},
 {"Homing Setting"       , (void*)homing   , false},
 {"Open SD card"         , (void*)SDselect , false},
-{""                     , (void*)NULL     , false}
+{"Unlock"               , (void*)unlock   , false}
 };
 
 typedef struct {
@@ -127,6 +129,17 @@ void loop ()
     key.detect();
 }
 
+bool readOK(String& t)
+{
+  return equalsWithPgmString(t.c_str(),PSTR("ok"));
+  /*
+  for(int i=0;i<t.length();i++)
+    if(t.charAt(i)=='o' && t.charAt(i+1) == 'k')
+      return 1;
+  return 0;
+  */
+}
+
 void serialEvent()
 {
     if(Serial.available()<2) return;
@@ -139,11 +152,13 @@ void serialEvent()
             char c = Serial.read();
             if(c=='\r' || c=='\n') break;
             temp+=c;
+            delay(10);
         }
     }
     #else // NOT_DEBUG
     for(;Serial.peek()=='\r'||Serial.peek()=='\n';) Serial.read();
     String temp;
+    //讀取資料
     for(uint32_t timeout=millis() ; millis() - timeout<SERIAL_TIMEOUT;)
     {
         if(Serial.available())
@@ -152,19 +167,24 @@ void serialEvent()
             char c = Serial.read();
             if(c=='\r' || c=='\n') break;
             temp+=c;
+            delay(10);
         }
     }
     for(;Serial.peek()=='\r'||Serial.peek()=='\n';) Serial.read();
+    for(;Serial.available();Serial.read());
     /*
     String temp = Serial.readStringUntil('\r');
     Serial.readStringUntil('\n'); // grbl response end by \r\n
     */
     #endif // if DEBUG else
+    //讀旗標
     if(bitRead(flag_controlState,RUNNING) && bitRead(flag_controlState,WAITING_RESPONSE))
     {
-        if(equalsWithPgmString(temp.c_str(),PSTR("ok")))
+        //delay(1000);
+        if(readOK(temp))//讀OK
         {
             bitClear(flag_controlState,WAITING_RESPONSE);
+            delay(10);
         }
         else
         {
@@ -173,12 +193,13 @@ void serialEvent()
             printline(temp.c_str(),4);
             runfile.close();
             #if defined(DEBUG)
-            Serial.println(F("ERROR."));
+            Serial.println(F("ERROR."));//讀ERROR(需更改
             Serial.println(temp);
             #endif // define
             bitSet(flag_controlState,STANDBY);
             bitClear(flag_controlState,RUNNING);
             bitClear(flag_controlState,WAITING_RESPONSE);
+            delay(10);
         }
     }
     else
@@ -483,7 +504,12 @@ void homing ()
     Serial.println(F("$H"));
     bitSet(flag_controlState, WAITING_RESPONSE);
 }
-
+void unlock ()
+{
+    if(bitRead(flag_controlState,WAITING_RESPONSE)||bitRead(flag_controlState,RUNNING)) return;
+    Serial.println(F("$X"));
+    bitSet(flag_controlState, WAITING_RESPONSE);
+}
 void SDselect ()
 {
     flag_screen = FILEPAGE;
@@ -521,11 +547,11 @@ void getfilelist()
     fileList.clear();
     for(;basefile.openNext(SD.vwd(),O_READ);)
     {
-	  if(!basefile.isHidden() && !basefile.isSystem())
-	  {
-		fileList.add(basefile.dirIndex());
-	  }
-	  basefile.close();
+    if(!basefile.isHidden() && !basefile.isSystem())
+    {
+    fileList.add(basefile.dirIndex());
+    }
+    basefile.close();
     }
     fileList.sort(fileCompare);
     item_length = fileList.size();
@@ -535,17 +561,18 @@ void getfilelist()
 }
 
 /** --- **/
-
+//讀檔案(行讀取)讀一個位元 EOF=end of file
 inline void filereadline(FatFile& readfile,String& buffer)
 {
     for(int temp=readfile.read() ; temp!=EOF && (temp!='\r' && temp!='\n') ; temp=readfile.read())
     {
         buffer += (char)temp;
+        delay(5);
     }
     // read until no \r or \n
     for(int temp=readfile.peek() ; temp!=EOF&&(temp=='\r' || temp=='\n') ; temp=readfile.peek()) readfile.read();
 }
-
+//讀檔案
 bool sendLine()
 {
     String buffer;
@@ -571,10 +598,10 @@ bool sendLine()
 
 int fileCompareName(const void* a,const void* b)
 {
-	char name1[NAME_MAX_LENGTH],name2[NAME_MAX_LENGTH];
-	((SdBaseFile*)a)->getName(name1,NAME_MAX_LENGTH-1);
-	((SdBaseFile*)b)->getName(name2,NAME_MAX_LENGTH-1);
-	return strcmp(name1,name2);
+  char name1[NAME_MAX_LENGTH],name2[NAME_MAX_LENGTH];
+  ((SdBaseFile*)a)->getName(name1,NAME_MAX_LENGTH-1);
+  ((SdBaseFile*)b)->getName(name2,NAME_MAX_LENGTH-1);
+  return strcmp(name1,name2);
 }
 
 int fileCompare(const void* a,const void* b)
@@ -582,31 +609,31 @@ int fileCompare(const void* a,const void* b)
     SdBaseFile a_file,b_file;
     a_file.open(SD.vwd(),*((uint16_t*)a),O_READ);
     b_file.open(SD.vwd(),*((uint16_t*)b),O_READ);
-	if(a_file.isDir())
-	{
-		if(b_file.isDir())
-		{
-			return fileCompareName(&a_file,&b_file);
-		}
-		return -1;
-	}
-	if(b_file.isDir())
-	{
-		if(((SdBaseFile*)a)->isDir())
-		{
-			return fileCompareName(&a_file,&b_file);
-		}
-		return 1;
-	}
-	dir_t _a,_b;
-	a_file.dirEntry(&_a);
-	b_file.dirEntry(&_b);
+  if(a_file.isDir())
+  {
+    if(b_file.isDir())
+    {
+      return fileCompareName(&a_file,&b_file);
+    }
+    return -1;
+  }
+  if(b_file.isDir())
+  {
+    if(((SdBaseFile*)a)->isDir())
+    {
+      return fileCompareName(&a_file,&b_file);
+    }
+    return 1;
+  }
+  dir_t _a,_b;
+  a_file.dirEntry(&_a);
+  b_file.dirEntry(&_b);
     if(_a.lastWriteDate==_b.lastWriteDate)
-	{
-		if(_a.lastWriteTime < _b.lastWriteTime) {return  1;}
-		if(_a.lastWriteTime > _b.lastWriteTime) {return -1;}
-		return fileCompareName(&a_file,&b_file);
-	}
+  {
+    if(_a.lastWriteTime < _b.lastWriteTime) {return  1;}
+    if(_a.lastWriteTime > _b.lastWriteTime) {return -1;}
+    return fileCompareName(&a_file,&b_file);
+  }
     else if (_a.lastWriteDate > _b.lastWriteDate) {return -1;}
     return 1;
 }

@@ -33,12 +33,13 @@ typedef int format_t;
     void LCDScreenInit();
 
     void welcomeDisplay();
-
+    //功能
     void menuInit();
-    void menuDisplay(const char*,uint8_t,uint8_t col = 2);
-    void menuDisplay_P(const char*,uint8_t,uint8_t col = 2);
+    void menuDisplay(const char*,uint8_t,uint8_t col = 2);//內容，行，欄顯示
+    void menuDisplay_P(const char*,uint8_t,uint8_t col = 2);//自行寫的
     void menuDown(const char*);
     void menuUp(const char*);
+    //箭頭移動
     void menuCursorMove(uint8_t,uint8_t);
     void menuCursorMove(uint8_t);
     void menuCursorDown();
@@ -46,19 +47,19 @@ typedef int format_t;
     uint8_t menuCusorPos();
     bool menuCusorAtBottom();
     bool menuCusorAtTop();
-
+    //開機介面
     void statusDisplay();
     void progressBar(int8_t);
     void runtime(uint32_t);
     void customtime(uint32_t);
     void statusSet(uint8_t);
-
+    
     void printline(const char *str,uint8_t line = 1,format_t format = ALIGN_L);
     void printline_P(const char *str,uint8_t line = 1);
 
     void flash();
     void clear();
-
+    //未用到
     void printf(int value,int width,bool zero = false);
     // void printf(const char *str,int width,format_t format = ALIGN_L);
 
