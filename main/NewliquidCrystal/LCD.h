@@ -37,62 +37,8 @@
 #ifndef _LCD_H_
 #define _LCD_H_
 
-#if (ARDUINO <  100)
-#include <WProgram.h>
-#else
-#include <Arduino.h>
-#endif
-
-#ifdef __AVR__
-#include <avr/pgmspace.h>
-#endif
-
 #include <inttypes.h>
-#include <Print.h>
-
-
-/*!
- @defined 
- @abstract   Performs a bitwise shift.
- @discussion Defines _BV bit shift which is very dependent macro defined by
- Atmel.
-
-    \note The bit shift is performed by the compiler which then inserts the
-    result into the code. Thus, there is no run-time overhead when using
-    _BV().
-*/
-#ifndef _BV    
-#define _BV(bit) (1 << (bit))
-#endif
-
-/*!
- @defined 
- @abstract   Enables disables fast waits for write operations for LCD
- @discussion If defined, the library will avoid doing un-necessary waits.
- this can be done, because the time taken by Arduino's slow digitalWrite
- operations. If fast digitalIO operations, comment this line out or undefine
- the mode.
- */
-#ifdef __AVR__
-#define FAST_MODE
-#endif
-
-/*!
- @function
- @abstract   waits for a given time in microseconds (compilation dependent).
- @discussion Waits for a given time defined in microseconds depending on
- the FAST_MODE define. If the FAST_MODE is defined the call will return
- inmediatelly.
- @param      uSec[in] time in microseconds.
- @result     None
- */
-inline static void waitUsec ( uint16_t uSec )
-{
-#ifndef FAST_MODE
-   delayMicroseconds ( uSec );
-#endif // FAST_MODE
-}
-
+#include "Print.h"
 
 /*!
  @defined 
@@ -399,7 +345,6 @@ public:
     */
    void createChar(uint8_t location, uint8_t charmap[]);
 
-#ifdef __AVR__
    /*!
     @function
     @abstract   Creates a custom character for use on the LCD.
@@ -421,7 +366,6 @@ public:
                 const char str_pstr[] PROGMEM = {0xc, 0x12, 0x12, 0xc, 0, 0, 0, 0};
     */
    void createChar(uint8_t location, const char *charmap);
-#endif // __AVR__
    
    /*!
     @function
@@ -515,17 +459,12 @@ public:
     
     @param      value[in] Value to write to the LCD.
     */
-#if (ARDUINO <  100)
-   virtual void write(uint8_t value);
-#else
+
    virtual size_t write(uint8_t value);
-#endif
-   
-#if (ARDUINO <  100)
+
+
    using Print::write;
-#else
-   using Print::write;
-#endif   
+
    
 protected:
    // Internal LCD variables to control the LCD shared between all derived
@@ -567,11 +506,7 @@ private:
     @result     mode LOW - write to the LCD CGRAM, HIGH - write a command to
     the LCD.
     */
-#if (ARDUINO <  100)
-   virtual void send(uint8_t value, uint8_t mode) { };
-#else
    virtual void send(uint8_t value, uint8_t mode) = 0;
-#endif
    
 };
 

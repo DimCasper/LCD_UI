@@ -41,7 +41,7 @@
  */
 #define EXEC_TIME 37
 
-class LiquidCrystal : public LCD
+class LiquidCrystal_ : public LCD
 {
 public:
    /*!
@@ -50,19 +50,19 @@ public:
     @discussion Defines the pin assignment that the LCD will have.
     The constructor does not initialize the LCD.
     */
-   LiquidCrystal(uint8_t rs, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
                  uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
-   LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t rw, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
                  uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
    
    // Constructors with backlight control
-   LiquidCrystal(uint8_t rs, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
                  uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7,
                  uint8_t backlightPin, t_backlighPol pol);
-   LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t rw, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
                  uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7,
                  uint8_t backlightPin, t_backlighPol pol);   
@@ -72,16 +72,16 @@ public:
     @discussion Defines the pin assignment that the LCD will have.
     The constructor does not initialize the LCD.
     */
-   LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t rw, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3);
-   LiquidCrystal(uint8_t rs, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3);
    
    // Constructors with backlight control
-   LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t rw, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
                  uint8_t backlightPin, t_backlighPol pol);
-   LiquidCrystal(uint8_t rs, uint8_t enable,
+   LiquidCrystal_(uint8_t rs, uint8_t enable,
                  uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
                  uint8_t backlightPin, t_backlighPol pol);
    /*!

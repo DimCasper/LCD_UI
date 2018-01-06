@@ -35,7 +35,7 @@
 #else
 #include <Arduino.h>
 #endif
-#include "LiquidCrystal.h"
+#include "LiquidCrystal_.h"
 
 // CONSTANT  definitions
 // ---------------------------------------------------------------------------

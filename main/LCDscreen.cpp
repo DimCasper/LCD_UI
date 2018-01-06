@@ -17,7 +17,7 @@ uint8_t _rows;  // real number, greater than 1
     #include "NewliquidCrystal/LiquidCrystal_I2C_ByVac.h"
     LiquidCrystal_I2C_ByVac lcdsc;
 #elif defined(LCD_PARALLEL_4) || defined(LCD_PARALLEL_8)
-    #include "NewliquidCrystal/LiquidCrystal.h"
+    #include "LiquidCrystal.h"
     #if defined(LCD_PARALLEL_4)
         LiquidCrystal lcdsc(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
     #elif defined(LCD_PARALLEL_8)
