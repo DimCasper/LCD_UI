@@ -1,14 +1,14 @@
-#ifndef STRINGLIST_H
-#define STRINGLIST_H
+#ifndef STRINGSTACK_H
+#define STRINGSTACK_H
 
 #include <arduino.h>
 
 #define NORESULT 16777215
 
-class stringlist
+class stringstack
 {
     public:
-        stringlist(const size_t default_size = 1);
+        stringstack(const size_t default_size = 1);
 
         // content control
         bool add(const char[]);

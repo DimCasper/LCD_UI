@@ -1,7 +1,7 @@
-#include "stringlist.h"
+#include "stringstack.h"
 #include <limits.h>
 
-stringlist::stringlist(const size_t default_size)
+stringstack::stringstack(const size_t default_size)
 {
     _size = 0;
     capacity = 1;
@@ -11,7 +11,7 @@ stringlist::stringlist(const size_t default_size)
     container = (char **)malloc(default_size*sizeof(char*));
 }
 
-bool stringlist::add(const char *value)
+bool stringstack::add(const char *value)
 {
     if(_size == capacity)
     {
@@ -23,20 +23,20 @@ bool stringlist::add(const char *value)
     sorted = false;
 }
 
-void stringlist::pop_back()
+void stringstack::pop_back()
 {
     free(container[_size-1]);
     _size--;
 }
 
-void stringlist::erase(uint16_t number)
+void stringstack::erase(uint16_t number)
 {
     if(number>=_size) return ;
     container[number] = "";
     sorted = false;
 }
 
-void stringlist::clear()
+void stringstack::clear()
 {
     for(;_size>0;_size--)
     {
@@ -47,29 +47,29 @@ void stringlist::clear()
     capacity = 0;
 }
 
-char* stringlist::get(uint16_t number)
+char* stringstack::get(uint16_t number)
 {
     if(number>=_size) return '\0';
     return container[number];
 }
 
-uint16_t stringlist::size()
+uint16_t stringstack::size()
 {
     return _size;
 }
 
-uint16_t stringlist::max_size()
+uint16_t stringstack::max_size()
 {
     return capacity;
 }
 
-size_t stringlist::length(uint16_t number)
+size_t stringstack::length(uint16_t number)
 {
     if(number>=_size) return 0;
     return strlen(container[number]);
 }
 
-uint16_t stringlist::contain(const char target[])
+uint16_t stringstack::contain(const char target[])
 {
     if(sorted)
     {
@@ -91,12 +91,12 @@ uint16_t stringlist::contain(const char target[])
     return NORESULT;
 }
 
-void stringlist::sort()
+void stringstack::sort()
 {
     _mergeSort(0,_size-1);
 }
 
-bool stringlist::mergeSort(int sort_by)
+bool stringstack::mergeSort(int sort_by)
 {
     if(!_mergeSort(0,_size-1)) return false;
     sorted = true;
@@ -108,7 +108,7 @@ bool stringlist::mergeSort(int sort_by)
  * include sort, about capacity
  */
 
-bool stringlist::increaseCapacity()
+bool stringstack::increaseCapacity()
 {
     capacity++;
     char **temp = (char **)realloc(container, capacity*sizeof(char*));
@@ -122,7 +122,7 @@ bool stringlist::increaseCapacity()
         return false; \
     }
 
-bool stringlist::_mergeSort(int front,int rear)
+bool stringstack::_mergeSort(int front,int rear)
 {
     if(front<rear)         //base case check
     {
@@ -134,7 +134,7 @@ bool stringlist::_mergeSort(int front,int rear)
     return true;
 }
 
-bool stringlist::merge(int front,int q,int rear)
+bool stringstack::merge(int front,int q,int rear)
 {
     int left_length=q-front+1,right_length=rear-q;
     char **left,**right;

@@ -1,32 +1,32 @@
-#ifndef MYLIST_H
-#define MYLIST_H
+#ifndef MYSTACK_H
+#define MYSTACK_H
 
 #include <arduino.h>
 #include <limits.h>
 
 #define NORESULT UINT_MAX
 
-template<class listtype>
-class mylist
+template<class stacktype>
+class mystack
 {
     public:
-        mylist(const size_t default_size = 1);
+        mystack(const size_t default_size = 1);
 
         // content control
-        bool add(const listtype);
+        bool add(const stacktype);
         void pop_back();
-        listtype* begin() { return container; };
-        listtype* end() { return container+_size-1; };
-        listtype get(uint16_t);
-        listtype& operator[] (size_t i) { return *(container+i); };
-        const listtype& operator[] (size_t i) const { return *(container+i); };
+        stacktype* begin() { return container; };
+        stacktype* end() { return container+_size-1; };
+        stacktype get(uint16_t);
+        stacktype& operator[] (size_t i) { return *(container+i); };
+        const stacktype& operator[] (size_t i) const { return *(container+i); };
         void erase(uint16_t);
         void clear();
 
         // sort and search
         void sort(int (*)(const void*,const void*));
         bool mergeSort(int (*)(const void*,const void*));
-        uint16_t contain(const listtype);
+        uint16_t contain(const stacktype);
 
         // get info
         uint16_t size();
@@ -39,7 +39,7 @@ class mylist
         uint16_t capacity;
         //int _sort_by;
         bool sorted;
-        listtype *container;
+        stacktype *container;
         bool increaseCapacity();
         bool _mergeSort(const int,const int);
         bool merge(const int,const int,const int);
@@ -48,19 +48,19 @@ class mylist
 
 // ==================================================
 
-template<class listtype>
-mylist<listtype>::mylist(const size_t default_size)
+template<class stacktype>
+mystack<stacktype>::mystack(const size_t default_size)
 {
     _size = 0;
     capacity = 1;
     //_sort_by = 0;
     sorted = false;
     if(default_size==0) container = NULL;
-    container = (listtype *)malloc(default_size*sizeof(listtype));
+    container = (stacktype *)malloc(default_size*sizeof(stacktype));
 }
 
-template<class listtype>
-bool mylist<listtype>::add(const listtype value)
+template<class stacktype>
+bool mystack<stacktype>::add(const stacktype value)
 {
     if(_size == capacity)
     {
@@ -71,23 +71,23 @@ bool mylist<listtype>::add(const listtype value)
     sorted = false;
 }
 
-template<class listtype>
-void mylist<listtype>::pop_back()
+template<class stacktype>
+void mystack<stacktype>::pop_back()
 {
     if(_size) _size--;
     if(!_size) this->clear();
 }
 
-template<class listtype>
-void mylist<listtype>::erase(uint16_t number)
+template<class stacktype>
+void mystack<stacktype>::erase(uint16_t number)
 {
     if(number>=_size) return ;
     container[number] = "";
     sorted = false;
 }
 
-template<class listtype>
-void mylist<listtype>::clear()
+template<class stacktype>
+void mystack<stacktype>::clear()
 {
     free(container);
     container = NULL;
@@ -95,26 +95,26 @@ void mylist<listtype>::clear()
     _size = 0;
 }
 
-template<class listtype>
-listtype mylist<listtype>::get(uint16_t number)
+template<class stacktype>
+stacktype mystack<stacktype>::get(uint16_t number)
 {
     return container[number];
 }
 
-template<class listtype>
-uint16_t mylist<listtype>::size()
+template<class stacktype>
+uint16_t mystack<stacktype>::size()
 {
     return _size;
 }
 
-template<class listtype>
-uint16_t mylist<listtype>::max_size()
+template<class stacktype>
+uint16_t mystack<stacktype>::max_size()
 {
     return capacity;
 }
 
-template<class listtype>
-uint16_t mylist<listtype>::contain(const listtype target)
+template<class stacktype>
+uint16_t mystack<stacktype>::contain(const stacktype target)
 {
     if(sorted)
     {
@@ -136,14 +136,14 @@ uint16_t mylist<listtype>::contain(const listtype target)
     return NORESULT;
 }
 
-template<class listtype>
-void mylist<listtype>::sort(int (*cmpfun)(const void*,const void*))
+template<class stacktype>
+void mystack<stacktype>::sort(int (*cmpfun)(const void*,const void*))
 {
-    qsort(container,_size,sizeof(listtype),cmpfun);
+    qsort(container,_size,sizeof(stacktype),cmpfun);
 }
 
-template<class listtype>
-bool mylist<listtype>::mergeSort(int (*cmpfun)(const void*,const void*))
+template<class stacktype>
+bool mystack<stacktype>::mergeSort(int (*cmpfun)(const void*,const void*))
 {
     _compare = cmpfun;
     if(!_mergeSort(0,_size-1)) return false;
@@ -156,23 +156,23 @@ bool mylist<listtype>::mergeSort(int (*cmpfun)(const void*,const void*))
  * include sort, about capacity
  **********************************/
 
-template<class listtype>
-bool mylist<listtype>::increaseCapacity()
+template<class stacktype>
+bool mystack<stacktype>::increaseCapacity()
 {
     capacity++;
-    listtype *temp = (listtype *)realloc(container, capacity*sizeof(listtype));
+    stacktype *temp = (stacktype *)realloc(container, capacity*sizeof(stacktype));
     if(temp == NULL) return false;
     container = temp;
     return true;
 }
 
 #define MALLOC(p,s) \
-    if(!((p)=(listtype*)malloc(s))) { \
+    if(!((p)=(stacktype*)malloc(s))) { \
         return false; \
     }
 
-template<class listtype>
-bool mylist<listtype>::_mergeSort(const int front,const int rear)
+template<class stacktype>
+bool mystack<stacktype>::_mergeSort(const int front,const int rear)
 {
     if(front<rear)         //base case check
     {
@@ -185,12 +185,12 @@ bool mylist<listtype>::_mergeSort(const int front,const int rear)
     return true;
 }
 
-template<class listtype>
-bool mylist<listtype>::merge(const int front,const int q,const int rear)
+template<class stacktype>
+bool mystack<stacktype>::merge(const int front,const int q,const int rear)
 {
     int left_length=q-front+1,right_length=rear-q;
-    listtype *left,*right;
-    MALLOC(left,(left_length)*sizeof(listtype));MALLOC(right,(right_length)*sizeof(listtype));
+    stacktype *left,*right;
+    MALLOC(left,(left_length)*sizeof(stacktype));MALLOC(right,(right_length)*sizeof(stacktype));
     for(int i=0;i<left_length ;i++) left[i]  = container[front+i];
     for(int i=0;i<right_length;i++) right[i] = container[q+i+1];
     for(int i=0,j=0,k=front;k<=rear;k++)

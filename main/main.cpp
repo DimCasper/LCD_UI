@@ -1,10 +1,10 @@
 #include <arduino.h>
 #include <avr/pgmspace.h>
 #include "keyDetect.h"
-#include "mylist.h"
+#include "mystack.h"
 #include "LCDscreen.h"
 #include "config.h"
-#include "stringlist.h"
+#include "stringstack.h"
 
 // #include <FreeStack.h>
 
@@ -18,8 +18,8 @@ keyDetect key;
 
 SdFat SD;
 SdBaseFile runfile;
-mylist<uint16_t> fileList;
-stringlist path;
+mystack<uint16_t> fileList;
+stringstack path;
 
 #define EOF -1
 
@@ -98,7 +98,7 @@ typedef struct {
     void *menuptr;
 }menu_item;
 
-mylist<menu_item> menu_stack;
+mystack<menu_item> menu_stack;
 
 /** ============ arduino main ============ **/
 

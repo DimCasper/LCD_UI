@@ -19,12 +19,6 @@
   #define LCD_CHOOSEN
 #endif // LCD type
 
-#ifdef LCD_IIC
-    #include "NewliquidCrystal/LiquidCrystal_I2C_ByVac.h"
-#elif defined(LCD_PARALLEL_4) || defined(LCD_PARALLEL_8)
-    #include "NewliquidCrystal/LiquidCrystal.h"
-#endif // LCD_LINE_SELECT
-
 typedef int format_t;
 #define ALIGN_L 0
 #define ALIGN_R 1
@@ -53,7 +47,7 @@ typedef int format_t;
     void runtime(uint32_t);
     void customtime(uint32_t);
     void statusSet(uint8_t);
-    
+
     void printline(const char *str,uint8_t line = 1,format_t format = ALIGN_L);
     void printline_P(const char *str,uint8_t line = 1);
 

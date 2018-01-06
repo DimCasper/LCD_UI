@@ -1,9 +1,9 @@
 #ifndef PATH_H
 #define PATH_H
 
-#include "stringlist.h"
+#include "stringstack.h"
 
-class path : public stringlist
+class path : public stringstack
 {
     public:
         char* fullpath();
