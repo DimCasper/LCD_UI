@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// #define DEBUG
+ #define DEBUG
 
 #define BAUD_RATE 115200
 #define SERIAL_TIMEOUT 100
@@ -28,13 +28,13 @@
 #endif // LCD 8 line
 #endif // 4 line and 8 line common
 
-#define LCD_2004
-// #define LCD_12864
+//#define LCD_2004
+ #define LCD_12864
 
 /** Key detect **/
 
 #define COUNTDOWN_BY_KEYDETECT
- #define USE_ENCODER
+// #define USE_ENCODER
 
 /** Define the cycle length(ms) of anything. **/
 

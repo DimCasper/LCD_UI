@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include <stdint.h>
+#include <arduino.h>
 #include <avr/pgmspace.h>
 
 #ifdef LCD_2004
@@ -23,24 +24,42 @@ typedef int format_t;
 #define ALIGN_L 0
 #define ALIGN_R 1
 
+typedef struct {
+    char title[LCD_COLS+1];
+    void* pointto;
+    bool hasSubmenu;
+    int16_t submenuLength;
+}menuTable;
 
     void LCDScreenInit();
 
     void welcomeDisplay();
     //功能
-    void menuInit();
-    void menuDisplay(const char*,uint8_t,uint8_t col = 2);//內容，行，欄顯示
-    void menuDisplay_P(const char*,uint8_t,uint8_t col = 2);//自行寫的
-    void menuDown(const char*);
-    void menuUp(const char*);
+    bool menuInit();
+    bool menuInit(int _length,menuTable* table);
+    bool menuInit(int _length,String (*_getLine)(int) = nullptr,void (*_enterCallback)(int) = nullptr,void (*endCallback)() = nullptr);
+    void menuDisplay(const char*,uint8_t,bool progmem = false);//內容，行，內容位置顯示
+    void menuDisplay(String,uint8_t,bool progmem = false);
+    void menuUp();
+    void menuDown();
+    void menuPageDown(String);
+    void menuPageDown(const char*);
+    void menuPageUp(String);
+    void menuPageUp(const char*);
+    void menuTableEnter();
+    void menuEnter();
+    void menuBack();
+    void menuClear();
+    String menuTableGetLine(int line);
     //箭頭移動
     void menuCursorMove(uint8_t,uint8_t);
     void menuCursorMove(uint8_t);
     void menuCursorDown();
     void menuCursorUp();
-    uint8_t menuCusorPos();
+    uint8_t menuGetCusorPos();
     bool menuCusorAtBottom();
     bool menuCusorAtTop();
+    void errorPage();
     //開機介面
     void statusDisplay();
     void progressBar(int8_t);

@@ -27,27 +27,17 @@ stringstack path;
 
 // act
 void act();
-void printmenulist();
 void homing ();
 void SDselect ();
 void unlock ();
 
-// key callback
-void upCallback();
-void downCallback();
-void enterCallback();
-
-void getfilelist();
-void printfilelist();
+int getfilelist();
 inline void path_popback();
 // inline void path_back();
 
 // main control
 bool sendLine();
 int fileCompare(const void* a,const void* b);
-
-// other
-bool equalsWithPgmString(const char* , const char*);
 
 /** ===================================== **/
 
@@ -76,68 +66,53 @@ enum controlState
 };
 
 /**  **/
+void statusPage();
+void homing();
+void SDselect();
+void unlock();
 
-// typedef bool submenu_t;
-//子目錄
-typedef struct {
-    char title[LCD_COLS+1];
-    void* pointto;
-    bool hasSubmenu;
-}menulist;
+void enterCallback_Status();
+
 //目錄
-PROGMEM const menulist menu_0[] = {
-{"Status page"          , (void*)NULL     , false},
-{"Homing Setting"       , (void*)homing   , false},
-{"Open SD card"         , (void*)SDselect , false},
-{"Unlock"               , (void*)unlock   , false}
+// "顯示字串", 連結方法或子目錄, 是否含有子目錄, 子目錄長度
+#define menu_0_length 4
+PROGMEM const menuTable menu_0[] = {
+{"Status page"          , (void*)statusPage, false,0},
+{"Homing Setting"       , (void*)homing    , false,0},
+{"Open SD card"         , (void*)SDselect  , false,0},
+{"Unlock"               , (void*)unlock    , false,0}
 };
 
-typedef struct {
-    uint8_t item_head;
-    uint8_t item_select;
-    void *menuptr;
-}menu_item;
-
-mystack<menu_item> menu_stack;
-
-/** ============ arduino main ============ **/
-
-void setup()
+void statusPage()
 {
-    // set grbl baud rate
-    Serial.begin(BAUD_RATE);
-    Serial.setTimeout(SERIAL_TIMEOUT);
-
-    // print init to lcd
-    LCDScreenInit();
-    welcomeDisplay();
-
     // set callback function
-    key.setCallback(KEY_DOWN, downCallback);
-    key.setCallback(KEY_UP, upCallback);
-    key.setCallback(KEY_ENTER, enterCallback);
+    key.setCallback(KEY_DOWN, nullptr);
+    key.setCallback(KEY_UP, nullptr);
+    key.setCallback(KEY_ENTER, enterCallback_Status);
 
-    // start
-    delay(1000UL); // pause welcome scene at least 0.5s
+    flag_screen = STATUSPAGE;
+    menuClear();
+    menuInit(menu_0_length,menu_0);
     statusDisplay();
 }
 
-void loop ()
+void menuPage()
 {
-    act();
+    #ifdef DEBUG
+    Serial.println(F("MenuPage"));
+    #endif // DEBUG
+    key.setCallback(KEY_UP,menuUp);
+    key.setCallback(KEY_DOWN,menuDown);
+    key.setCallback(KEY_ENTER,menuTableEnter);
 
-    key.detect();
+    flag_screen = MENUPAGE;
+    menuClear();
+    menuInit(menu_0_length,menu_0);
 }
 
 bool readOK(String& t)
 {
-  return equalsWithPgmString(t.c_str(),PSTR("ok"));
-  /*
-  for(int i=0;i<t.length();i++)
-    if(t.charAt(i)=='o' && t.charAt(i+1) == 'k')
-      return 1;
-  return 0;
-  */
+  return !strcmp_P(t.c_str(),PSTR("ok"));
 }
 
 void serialEvent()
@@ -213,259 +188,85 @@ void serialEvent()
 
 /** ======= Callback function ======= **/
 
-uint8_t item_select = 0;
-uint8_t item_head = 0;
-uint8_t item_length = 0;
-
-#if defined(DEBUG)
-#define PRINT_ITEM_STATE \
-    Serial.println((int)(item_head+item_select));
-#define PRINT_ITEM \
-    Serial.println(temp);
-#else
-#define PRINT_ITEM_STATE
-#define PRINT_ITEM
-#endif //DEBUG
-
-#define MENU_READ_U \
-            menulist tempItem; \
-            memcpy_P(&tempItem, (menu_stack.end()->menuptr)+(item_head)*sizeof(menulist),sizeof(menulist)); \
-            char *temp = tempItem.title;
-
-#define MENU_READ_D \
-            menulist tempItem; \
-            memcpy_P(&tempItem, (menu_stack.end()->menuptr)+(item_head+item_select)*sizeof(menulist),sizeof(menulist)); \
-            char *temp = tempItem.title;
-
-#define FILE_READ_U \
-            char temp[NAME_MAX_LENGTH]; \
-            if(item_head==0) strcpy_P(temp, PSTR("../")); \
-            else \
-            { \
-                SdBaseFile basefile; \
-                basefile.open(SD.vwd(),fileList[item_head - 1],O_READ); \
-                basefile.getName(temp,NAME_MAX_LENGTH-2); \
-                if(basefile.isDir()) strcat_P(temp,PSTR("/")); \
-                basefile.close(); \
-            }
-
-#define FILE_READ_D \
-            char temp[NAME_MAX_LENGTH]; \
-            SdBaseFile basefile; \
-            basefile.open(SD.vwd(),fileList[item_head + item_select -1],O_READ); \
-            basefile.getName(temp,NAME_MAX_LENGTH-1); \
-            if(basefile.isDir()) strcat_P(temp,PSTR("/")); \
-            basefile.close();
-
-// MOVECHECK(MENU_READ,DOWN)
-#define MOVECHECK(READTYPE,IF,IF2,DIR,DIR_OPR) \
-            if(IF) \
-            { \
-                flash(); \
-                return ; \
-            } \
-            else \
-            { \
-                if(IF2) \
-                { \
-                    item_head DIR_OPR; \
-                    (menu_stack.end()->item_head) DIR_OPR; \
-                    READTYPE; \
-                    menu ## DIR (temp); \
-                    PRINT_ITEM_STATE; \
-                    PRINT_ITEM; \
-                    return ; \
-                } \
-                else \
-                { \
-                    item_select DIR_OPR; \
-                    (menu_stack.end()->item_select) DIR_OPR; \
-                    menuCursor ## DIR (); \
-                    PRINT_ITEM_STATE; \
-                    return ; \
-                } \
-            }
-
 void downCallback()
 {
-    #if defined(DEBUG)
-    Serial.println(F("Down"));
-    #endif // DEBUG
-    if(flag_screen == STATUSPAGE)
-    {
-        // do nothing
-    }
-    else if(flag_screen == MENUPAGE)
-    {
-        MOVECHECK(MENU_READ_D,item_select+item_head+1 == item_length,item_select+1 == LCD_ROWS,Down,++);
-    }
-    else if(flag_screen == FILEPAGE)
-    {
-        MOVECHECK(FILE_READ_D,item_select+item_head == item_length,item_select+1 == LCD_ROWS,Down,++);
-    }
-    else
-    {
-        ;
-    }
+
 }
 
 void upCallback()
 {
-    #if defined(DEBUG)
-    Serial.println(F("Up"));
-    #endif // DEBUG
-    if(flag_screen == STATUSPAGE)
-    {
-        // do nothing
-    }
-    else if(flag_screen == MENUPAGE)
-    {
-        MOVECHECK(MENU_READ_U,item_select+item_head==0,item_select == 0,Up,--);
-    }
-    else if(flag_screen == FILEPAGE)
-    {
-        MOVECHECK(FILE_READ_U,item_select+item_head==0,item_select == 0,Up,--);
-    }
-    else
-    {
-        ;
-    }
+
 }
 
-#undef MENU_READ
-#undef FILE_READ
-#undef MOVECHECK
-
-void enterCallback()
+void enterCallback_Status()
 {
-    #if defined(DEBUG)
-    Serial.println(F("Enter"));
+    #ifdef DEBUG
+    Serial.println(F("Enter callback in status page."));
     #endif // DEBUG
-    if(flag_screen == STATUSPAGE)
+    menuPage();
+}
+
+void enterCallback_File(int select)
+{
+    // enter selected directory or file.
+    if(select==0)
     {
-        flag_screen = MENUPAGE;
-
-        //will do it at printmenulist()
-        // item_select = 0;
-        // item_head = 0;
-        // item_length = 0;
-
-        menu_stack.add(menu_item{0,0,(void*)&menu_0});
         menuInit();
-
-        // print menu list
-        printmenulist();
-    }
-    else if(flag_screen == MENUPAGE)
-    {
-        if(item_head==0&&item_select==0)
+        menuBack();
+        if(path.size()==0)
         {
-            // back to previous menu
-            menu_stack.pop_back();
-            if(menu_stack.size()==0)
-            {
-                flag_screen = STATUSPAGE;
-                statusDisplay();
-            }
-            else
-            {
-                printmenulist();
-            }
+            menuPage();
         }
         else
         {
-            // enter select
-            menulist tempItem;
-            memcpy_P(&tempItem, ((menu_stack.end()->menuptr)+(item_head+item_select)*sizeof(menulist)),sizeof(menulist));
-            if(tempItem.hasSubmenu)
-            {
-                menu_stack.add({0,0,tempItem.pointto});
-
-                printmenulist();
-            }
-            else
-            {
-                ((void (*)())(tempItem.pointto))();
-            }
+            path_popback();
+            menuInit(getfilelist);
         }
-    }
-    else if(flag_screen == FILEPAGE)
-    {
-        // enter selected directory or file.
-        if(item_head==0&&item_select==0)
-        {
-            menuInit();
-            menu_stack.pop_back();
-            if(path.size()==0)
-            {
-                flag_screen = MENUPAGE;
-                printmenulist();
-            }
-            else
-            {
-                path_popback();
-                getfilelist();
-                printfilelist();
-            }
-        }
-        else
-        {
-            SdBaseFile basefile;
-            basefile.open(SD.vwd(),fileList[item_head+item_select-1],O_READ);
-            if(basefile.isDir())
-            {
-                char temp[NAME_MAX_LENGTH];
-                basefile.getName(temp,NAME_MAX_LENGTH-1);
-                basefile.close();
-                path.add(temp);
-                menu_stack.add({0,0,(void*)NULL});
-                SD.chdir(temp,true);
-                getfilelist();
-                printfilelist();
-            }
-            else // is file
-            {
-                if(bitRead(flag_controlState,RUNNING))
-                {
-                    return ;
-                }
-
-                // clear the path first, it might waste space
-                path.clear();
-
-                // clear menu stack
-                menu_stack.clear();
-
-                runfile = basefile;
-                #if defined(DEBUG)
-                /*
-                Serial.print(F("Select file:"));
-                char temp[NAME_MAX_LENGTH];
-                runfile.getName(temp,NAME_MAX_LENGTH-1);
-                Serial.println(temp);
-                */
-                #endif // defined
-                // set control state
-                flag_controlState = 0;
-                bitSet(flag_controlState,RUNNING);
-                // transfer screen
-                flag_screen = STATUSPAGE;
-                statusDisplay();
-
-                // initial timer
-                run_start_time = millis();
-            }
-        }
-    }
-    else if(flag_screen == SDERRORPAGE)
-    {
-        //
-        flag_screen = MENUPAGE;
-        printmenulist();
     }
     else
     {
-        // what if else?
+        SdBaseFile basefile;
+        basefile.open(SD.vwd(),fileList[select-1],O_READ);
+        if(basefile.isDir())
+        {
+            char temp[NAME_MAX_LENGTH];
+            basefile.getName(temp,NAME_MAX_LENGTH-1);
+            basefile.close();
+            path.add(temp);
+            SD.chdir(temp,true);
+            menuInit(getfilelist);
+        }
+        else // is file
+        {
+            if(bitRead(flag_controlState,RUNNING))
+            {
+                return ;
+            }
+
+            // clear the path first, it might waste space
+            path.clear();
+
+            // clear menu stack
+            menuClear();
+
+            runfile = basefile;
+            #if defined(DEBUG)
+            /*
+            Serial.print(F("Select file:"));
+            char temp[NAME_MAX_LENGTH];
+            runfile.getName(temp,NAME_MAX_LENGTH-1);
+            Serial.println(temp);
+            */
+            #endif // defined
+            // set control state
+            flag_controlState = 0;
+            bitSet(flag_controlState,RUNNING);
+            // transfer screen
+            statusPage();
+
+            // initial timer
+            run_start_time = millis();
+        }
     }
 }
 
@@ -510,6 +311,9 @@ void unlock ()
     Serial.println(F("$X"));
     bitSet(flag_controlState, WAITING_RESPONSE);
 }
+
+String getFileName(int index);
+
 void SDselect ()
 {
     flag_screen = FILEPAGE;
@@ -523,11 +327,8 @@ void SDselect ()
         flag_screen = SDERRORPAGE;
         return ;
     }
-    menu_stack.add({0,0,(void*)NULL});
-    // clear path
     path.clear();
-    getfilelist();
-    printfilelist();
+    menuInit(getfilelist(),getFileName,enterCallback_File,enterCallback_Status);
 }
 
 inline void path_popback()
@@ -541,7 +342,7 @@ inline void path_popback()
     }
 }
 
-void getfilelist()
+int getfilelist()
 {
     SdBaseFile basefile;
     fileList.clear();
@@ -554,20 +355,19 @@ void getfilelist()
     basefile.close();
     }
     fileList.sort(fileCompare);
-    item_length = fileList.size();
+    return fileList.size();
     #if defined(DEBUG)
-    Serial.println((int)item_length);
+
     #endif // defined
 }
 
 /** --- **/
-//讀檔案(行讀取)讀一個位元 EOF=end of file
+//讀檔案(行讀取)讀一個位元組 EOF=end of file
 inline void filereadline(FatFile& readfile,String& buffer)
 {
     for(int temp=readfile.read() ; temp!=EOF && (temp!='\r' && temp!='\n') ; temp=readfile.read())
     {
         buffer += (char)temp;
-        delay(5);
     }
     // read until no \r or \n
     for(int temp=readfile.peek() ; temp!=EOF&&(temp=='\r' || temp=='\n') ; temp=readfile.peek()) readfile.read();
@@ -609,104 +409,81 @@ int fileCompare(const void* a,const void* b)
     SdBaseFile a_file,b_file;
     a_file.open(SD.vwd(),*((uint16_t*)a),O_READ);
     b_file.open(SD.vwd(),*((uint16_t*)b),O_READ);
-  if(a_file.isDir())
-  {
+    if(a_file.isDir())
+    {
+        if(b_file.isDir())
+        {
+          return fileCompareName(&a_file,&b_file);
+        }
+        return -1;
+    }
     if(b_file.isDir())
     {
-      return fileCompareName(&a_file,&b_file);
+        if(((SdBaseFile*)a)->isDir())
+        {
+          return fileCompareName(&a_file,&b_file);
+        }
+        return 1;
     }
-    return -1;
-  }
-  if(b_file.isDir())
-  {
-    if(((SdBaseFile*)a)->isDir())
-    {
-      return fileCompareName(&a_file,&b_file);
-    }
-    return 1;
-  }
-  dir_t _a,_b;
-  a_file.dirEntry(&_a);
-  b_file.dirEntry(&_b);
+    dir_t _a,_b;
+    a_file.dirEntry(&_a);
+    b_file.dirEntry(&_b);
     if(_a.lastWriteDate==_b.lastWriteDate)
-  {
-    if(_a.lastWriteTime < _b.lastWriteTime) {return  1;}
-    if(_a.lastWriteTime > _b.lastWriteTime) {return -1;}
-    return fileCompareName(&a_file,&b_file);
-  }
+    {
+        if(_a.lastWriteTime < _b.lastWriteTime) {return  1;}
+        if(_a.lastWriteTime > _b.lastWriteTime) {return -1;}
+        return fileCompareName(&a_file,&b_file);
+    }
     else if (_a.lastWriteDate > _b.lastWriteDate) {return -1;}
     return 1;
 }
 
 /** other **/
 
-// use to print first n items
-void printmenulist()
-{
-    item_select = menu_stack.end()->item_select;
-    item_head = menu_stack.end()->item_head;
-    item_length = 0;
-    menuCursorMove(item_select+1);
-    // print menu list
-    for(;;item_length++)
-    {
-        menulist tempItem;
-        memcpy_P(&tempItem, (menu_stack.end()->menuptr+(item_length)*sizeof(menulist)),sizeof(menulist));
-        if(tempItem.title[0]=='\0') break;
-        if(item_length<LCD_ROWS)
-        {
-            menuDisplay(tempItem.title,item_length+1);
+// For LCDscreen menu control
 
-            #if defined(DEBUG)
-            Serial.println(tempItem.title);
-            #endif // DEBUG
-        }
-    }
-}
-
-// use to print first n items
-void printfilelist()
+String getFileName(int index)
 {
-    item_select = menu_stack.end()->item_select;
-    item_head = menu_stack.end()->item_head;
-    menuCursorMove(item_select+1);
-    int i;
-    // first item is back to previous directory
-    if(!item_head)
+    if(!index)
     {
-        menuDisplay_P(PSTR("../"),1);
-        i=2;
+        return PSTR("../");
     }
-    else
-    {
-        i=1;
-    }
+    index -= 1;
     #if defined(DEBUG)
     Serial.println(F("../"));
     #endif // defined
-    for(;i<=LCD_ROWS;i++)
-    {
-        char temp[NAME_MAX_LENGTH];
-        SdBaseFile basefile;
-        basefile.open(SD.vwd(),fileList[i-2+item_head],O_READ);
-        basefile.getName(temp,NAME_MAX_LENGTH-2);
-        if(basefile.isDir()) strcat_P(temp,PSTR("/"));
-        menuDisplay(temp,i);
-        basefile.close();
-
-        #if defined(DEBUG)
-        Serial.println(temp);
-        #endif // DEBUG
-    }
+    char temp[NAME_MAX_LENGTH];
+    SdBaseFile basefile;
+    basefile.open(SD.vwd(),fileList[index],O_READ);
+    basefile.getName(temp,NAME_MAX_LENGTH-2);
+    if(basefile.isDir()) strcat_P(temp,PSTR("/"));
+    basefile.close();
+    #if defined(DEBUG)
+    Serial.println(temp);
+    #endif // DEBUG
+    return String(temp);
 }
 
-bool equalsWithPgmString(const char* a, const char* s)
+/** ============ Arduino main ============ **/
+
+void setup()
 {
-    char temp;
-    for(; (temp=pgm_read_byte(s++))&&(*a) ; a++)
-    {
-        if((*a) != temp) return false;
-    }
-    if((*a) != temp) return false;
-    return true;
+    // set grbl baud rate
+    Serial.begin(BAUD_RATE);
+    Serial.setTimeout(SERIAL_TIMEOUT);
+
+    // print init to lcd
+    LCDScreenInit();
+    welcomeDisplay();
+
+    // start
+    delay(1000UL); // pause welcome scene at least 0.5s
+    statusPage();
+}
+
+void loop ()
+{
+    act();
+
+    key.detect();
 }

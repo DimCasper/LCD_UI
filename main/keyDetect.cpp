@@ -159,7 +159,14 @@ inline void keyDetect::checkEncoder ()
         if(flagRead(flag,A) && flagRead(flag,B))
         {
             //Serial.println(encoder_motion>0?"CCW":"CW");
-            encoder_motion>0? callbackFunction[KEY_UP]():callbackFunction[KEY_DOWN]() ;
+            if(encoder_motion>0)
+            {
+                if(callbackFunction[KEY_UP]) callbackFunction[KEY_UP]();
+            }
+            else
+            {
+                if(callbackFunction[KEY_DOWN]) callbackFunction[KEY_DOWN]();
+            }
             encoder_motion = 0;
         }
     }
