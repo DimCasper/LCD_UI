@@ -2,6 +2,7 @@
 #define LCDSCREEN_H_INCLUDED
 
 #include "config.h"
+#include "general.h"
 #include <stdint.h>
 #include <arduino.h>
 #include <avr/pgmspace.h>
@@ -38,8 +39,9 @@ typedef struct {
     bool menuInit();
     bool menuInit(int _length,menuTable* table);
     bool menuInit(int _length,String (*_getLine)(int) = nullptr,void (*_enterCallback)(int) = nullptr,void (*endCallback)() = nullptr);
-    void menuDisplay(const char*,uint8_t,bool progmem = false);//內容，行，內容位置顯示
-    void menuDisplay(String,uint8_t,bool progmem = false);
+    void menuPrint(bool datamem = NORMALDATA);
+    void menuDisplay(const char*,uint8_t,bool datamem = NORMALDATA);//內容，行，內容位置顯示
+    void menuDisplay(String,uint8_t,bool datamem = NORMALDATA);
     void menuUp();
     void menuDown();
     void menuPageDown(String);
@@ -59,7 +61,6 @@ typedef struct {
     uint8_t menuGetCusorPos();
     bool menuCusorAtBottom();
     bool menuCusorAtTop();
-    void errorPage();
     //開機介面
     void statusDisplay();
     void progressBar(int8_t);
@@ -67,8 +68,8 @@ typedef struct {
     void customtime(uint32_t);
     void statusSet(uint8_t);
 
-    void printline(const char *str,uint8_t line = 1,format_t format = ALIGN_L);
-    void printline_P(const char *str,uint8_t line = 1);
+    void printline(const char *str,uint8_t line = 0,format_t format = ALIGN_L);
+    void printline_P(const char *str,uint8_t line = 0);
 
     void flash();
     void clear();

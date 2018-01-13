@@ -4,9 +4,11 @@
 #include "mystack.h"
 #include "LCDscreen.h"
 #include "config.h"
+#include "general.h"
 #include "stringstack.h"
 
 // #include <FreeStack.h>
+//<Idle,MPos:0.000,0.000,0.000,WPos:0.000,0.000,0.000>
 
 /**
  *  If you don't have this library, please download it at
@@ -106,8 +108,26 @@ void menuPage()
     key.setCallback(KEY_ENTER,menuTableEnter);
 
     flag_screen = MENUPAGE;
-    menuClear();
-    menuInit(menu_0_length,menu_0);
+    menuPrint();
+    //menuClear();
+    //menuInit(menu_0_length,menu_0);
+}
+
+void errorPage(String text)
+{
+    errorPage(text.c_str());
+}
+
+void errorPage(const char* text,bool datamem = NORMALDATA)
+{
+    key.setCallback(KEY_UP,nullptr);
+    key.setCallback(KEY_DOWN,nullptr);
+    key.setCallback(KEY_ENTER,menuPage);
+    clear();
+    if(datamem)
+        printline_P(text);
+    else
+        printline(text);
 }
 
 bool readOK(String& t)
@@ -305,6 +325,7 @@ void homing ()
     Serial.println(F("$H"));
     bitSet(flag_controlState, WAITING_RESPONSE);
 }
+
 void unlock ()
 {
     if(bitRead(flag_controlState,WAITING_RESPONSE)||bitRead(flag_controlState,RUNNING)) return;
@@ -322,8 +343,7 @@ void SDselect ()
         #if defined(DEBUG)
         Serial.println(F("SD begin error."));
         #endif // defined
-        clear();
-        printline_P(PSTR("No SD card."),1);
+        errorPage(PSTR("No SD card."),PROGDATA);
         flag_screen = SDERRORPAGE;
         return ;
     }

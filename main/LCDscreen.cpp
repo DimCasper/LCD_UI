@@ -87,8 +87,10 @@ typedef struct {
 
 mystack<menu_stack_item> menu_stack;
 
-void menuPrint(bool progmem = false)
+void menuPrint(bool datamem = NORMALDATA)
 {
+    clear();
+    menuCursorMove(menu_stack.end()->item_cursor);
     for(int row=0;row<_rows&&row<menu_stack.end()->item_length;row++)
     {
         #ifdef DEBUG
@@ -97,7 +99,7 @@ void menuPrint(bool progmem = false)
         Serial.print(F("\tText:"));
         Serial.println(getLine(row));
         #endif // DEBUG
-        menuDisplay(getLine(row),row,progmem);
+        menuDisplay(getLine(row),row,datamem);
     }
 }
 
@@ -127,26 +129,26 @@ bool menuInit(int _length,String (*_getLine)(int),void (*_enterCallback)(int),vo
 
 bool menuInit(int _length,menuTable* table)
 {
+    if(!table)
+    {
+        return false;
+    }
     menuInit();
     menu_stack.end()->item_length = _length;
     getLine = menuTableGetLine;
     menuEnterCallback = menuTableEnter;
-    if(!table)
-    {
-        errorPage();
-        return false;
-    }
+
     menu_stack.add({0,0,_length,table});
     menuPrint();
     return true;
 }
 
-void menuDisplay(String text,uint8_t row,bool progmem)
+void menuDisplay(String text,uint8_t row,bool datamem)
 {
-    menuDisplay(text.c_str(),row,progmem);
+    menuDisplay(text.c_str(),row,datamem);
 }
 
-void menuDisplay(const char* item, uint8_t row, bool progmem)
+void menuDisplay(const char* item, uint8_t row, bool datamem)
 {
     if(row>_rows) row=_rows;
     int col=2;
@@ -161,7 +163,7 @@ void menuDisplay(const char* item, uint8_t row, bool progmem)
     #endif // 12864
     for(;col<_cols;col++)
     {
-        char temp = progmem?pgm_read_byte(item):*item;
+        char temp = datamem?pgm_read_byte(item):*item;
         if(temp)
         {
             lcdsc.write(temp);
@@ -231,9 +233,6 @@ void menuDown()
 {
     #ifdef DEBUG
     Serial.println(F("menuDown"));
-    Serial.print(menu_stack.end()->item_cursor);Serial.println(F(""));
-    Serial.print(menu_stack.end()->item_head);Serial.println(F(""));
-    Serial.print(menu_stack.end()->item_length);Serial.println(F(""));
     #endif // DEBUG
     if(menu_stack.end()->item_cursor+menu_stack.end()->item_head+1==menu_stack.end()->item_length)
     {
@@ -339,11 +338,6 @@ void menuPageUp(const char *item)
         menuDisplay(displaymem+1+_cols*(j-1),j+1);
     }
     menuDisplay(item,1);
-}
-
-void errorPage()
-{
-    ;
 }
 
 /************************
@@ -487,7 +481,7 @@ void printf(int value,int width,bool zero)
 
 void printline(const char *str,uint8_t line,format_t format)
 {
-    lcdsc.setCursor(0,line-1);
+    lcdsc.setCursor(0,line);
     uint8_t i=0,j=0;
     if(format == ALIGN_R)
     {
@@ -517,7 +511,7 @@ void printline(const char *str,uint8_t line,format_t format)
 
 void printline_P(const char *str,uint8_t line)
 {
-    lcdsc.setCursor(0,line-1);
+    lcdsc.setCursor(0,line);
     uint8_t i=0;
     for(;i<_cols;i++)
     {
