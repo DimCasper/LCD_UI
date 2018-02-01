@@ -25,6 +25,10 @@ stringstack path;
 
 #define EOF -1
 
+char serial_buffer[SERIAL_BUFFER_LENGTH+1];
+size_t serial_buffer_size = 0;
+void (*serialCallback)();
+
 /** ===================================== **/
 
 // act
@@ -72,17 +76,21 @@ void statusPage();
 void homing();
 void SDselect();
 void unlock();
+void block();
+void reset();
 
 void enterCallback_Status();
 
 //目錄
 // "顯示字串", 連結方法或子目錄, 是否含有子目錄, 子目錄長度
-#define menu_0_length 4
-PROGMEM const menuTable menu_0[] = {
+#define menu_0_length 6
+const menuTable menu_0[] PROGMEM = {
 {"Status page"          , (void*)statusPage, false,0},
 {"Homing Setting"       , (void*)homing    , false,0},
 {"Open SD card"         , (void*)SDselect  , false,0},
-{"Unlock"               , (void*)unlock    , false,0}
+{"Unlock"               , (void*)unlock    , false,0},
+{"Stop"                 , (void*)block     , false,0},
+{"Reset"                , (void*)reset     , false,0}
 };
 
 void statusPage()
@@ -108,7 +116,7 @@ void menuPage()
     key.setCallback(KEY_ENTER,menuTableEnter);
 
     flag_screen = MENUPAGE;
-    menuPrint();
+    menuPrint(menuTableGetLine);
     //menuClear();
     //menuInit(menu_0_length,menu_0);
 }
@@ -130,83 +138,141 @@ void errorPage(const char* text,bool datamem = NORMALDATA)
         printline(text);
 }
 
-bool readOK(String& t)
+int index_of(char* str,char cha,int index = 0)
 {
-  return !strcmp_P(t.c_str(),PSTR("ok"));
+    if(index<0) return;
+    for(;*str;index++)
+    {
+        if(*(str+index)==cha)
+        {
+            return index;
+        }
+    }
+    return -1;
+}
+
+int intParse(char* str)
+{
+    int i=0;
+    for(;(*str)>='0'&&(*str)<='9';str++)
+        i=i*10+((*str)-'0');
+    return i;
+}
+
+bool statParse(char* str,status* obj)
+{
+    int index=0;
+    if(~(index = index_of(str,'<'))) return false;
+    index++;
+    for(int i=0;i<STAT_LENGTH+1&&(str[index]!='|'||str[index]!=',');i++,index++)
+    {
+        obj->stat[i] = str[index];
+    }
+    if(~(index = index_of(str,'M',index))) return false;
+    if(~(index = index_of(str,':',index))) return false;
+    index++;
+    obj->x = intParse(str+index);
+    if(~(index = index_of(str,',',index))) return false;
+    index++;
+    obj->y = intParse(str+index);
+    if(~(index = index_of(str,',',index))) return false;
+    index++;
+    obj->z = intParse(str+index);
+    return true;
+}
+
+bool readOK(char* t)
+{
+  return !strcmp_P(t,PSTR("ok"));
+}
+
+void serialBufferClear()
+{
+    serial_buffer_size = 0;
 }
 
 void serialEvent()
 {
-    if(Serial.available()<2) return;
-    #if defined(DEBUG)
-    String temp;
-    for(uint32_t timeout=millis() ; millis() - timeout<SERIAL_TIMEOUT;)
-    {
-        if(Serial.available())
-        {
-            char c = Serial.read();
-            if(c=='\r' || c=='\n') break;
-            temp+=c;
-            delay(10);
-        }
-    }
-    #else // NOT_DEBUG
-    for(;Serial.peek()=='\r'||Serial.peek()=='\n';) Serial.read();
-    String temp;
-    //讀取資料
-    for(uint32_t timeout=millis() ; millis() - timeout<SERIAL_TIMEOUT;)
-    {
-        if(Serial.available())
-        {
-            timeout=millis();
-            char c = Serial.read();
-            if(c=='\r' || c=='\n') break;
-            temp+=c;
-            delay(10);
-        }
-    }
-    for(;Serial.peek()=='\r'||Serial.peek()=='\n';) Serial.read();
-    for(;Serial.available();Serial.read());
-    /*
-    String temp = Serial.readStringUntil('\r');
-    Serial.readStringUntil('\n'); // grbl response end by \r\n
-    */
-    #endif // if DEBUG else
-    //讀旗標
-    if(bitRead(flag_controlState,RUNNING) && bitRead(flag_controlState,WAITING_RESPONSE))
-    {
-        //delay(1000);
-        if(readOK(temp))//讀OK
-        {
-            bitClear(flag_controlState,WAITING_RESPONSE);
-            delay(10);
-        }
-        else
-        {
-            flag_screen = STATUSPAGE;
-            statusDisplay();
-            printline(temp.c_str(),4);
-            runfile.close();
-            #if defined(DEBUG)
-            Serial.println(F("ERROR."));//讀ERROR(需更改
-            Serial.println(temp);
-            #endif // define
-            bitSet(flag_controlState,STANDBY);
-            bitClear(flag_controlState,RUNNING);
-            bitClear(flag_controlState,WAITING_RESPONSE);
-            delay(10);
-        }
-    }
-    else
-    {
-        //
-    }
-    #if defined(DEBUG)
-    for(;Serial.peek()=='\r'||Serial.peek()=='\n';) Serial.read();
+    #ifdef DEBUG
+    Serial.println(F("SerialEvent"));
     #endif // DEBUG
+    if(Serial.peek()=='\r'||Serial.peek()=='\n'||serial_buffer_size==SERIAL_BUFFER_LENGTH)
+    {
+        Serial.read();
+        #ifdef DEBUG
+        Serial.println(F("\\t or \\n"));
+        #endif // DEBUG
+        if(!serial_buffer_size) return;
+        serial_buffer[serial_buffer_size] = '\0';
+        #ifdef DEBUG
+        Serial.println(serial_buffer);
+        #endif // DEBUG
+        if(serialCallback)
+        {
+            serialCallback();
+        }
+        serialBufferClear();
+        return ;
+    }
+    //讀取資料
+    if(serial_buffer_size<SERIAL_BUFFER_LENGTH)
+    {
+        serial_buffer[serial_buffer_size] = Serial.read();
+        serial_buffer_size++;
+    }
+}
+
+void readError()
+{
+    statusPage();
+    printline(serial_buffer,4);
+    runfile.close();
+    #if defined(DEBUG)
+    Serial.println(F("ERROR."));//讀ERROR(需更改
+    Serial.println(serial_buffer);
+    #endif // define
+    bitSet(flag_controlState,STANDBY);
+    bitClear(flag_controlState,RUNNING);
+    bitClear(flag_controlState,WAITING_RESPONSE);
+
+    serialCallback = nullptr;
+    delay(10);
 }
 
 /** ======= Callback function ======= **/
+
+void readOkCallback()
+{
+    #ifdef DEBUG
+    Serial.println(F("readOkCallback"));
+    #endif // DEBUG
+    //讀旗標
+    if(!bitRead(flag_controlState,WAITING_RESPONSE))
+    {
+        //serialBufferClear();
+        return ;
+    }
+
+    if(readOK(serial_buffer))//讀OK
+    {
+        bitClear(flag_controlState,WAITING_RESPONSE);
+        serialCallback = nullptr;
+        delay(10);
+    }
+    else
+    {
+        readError();
+    }
+}
+
+void readStatusCallback()
+{
+    status temp;
+    if(statParse(serial_buffer,&temp))
+    {
+        ;
+    }
+}
 
 void downCallback()
 {
@@ -228,20 +294,30 @@ void enterCallback_Status()
 
 void enterCallback_File(int select)
 {
+    #ifdef DEBUG
+    Serial.println(F("enterCallback_File"));
+    #endif // DEBUG
     // enter selected directory or file.
     if(select==0)
     {
-        menuInit();
-        menuBack();
+        #ifdef DEBUG
+        Serial.println(F("Select 0"));
+        #endif // DEBUG
         if(path.size()==0)
         {
+            #ifdef DEBUG
+            Serial.println(F("No more path"));
+            #endif // DEBUG
             menuPage();
         }
         else
         {
+            #ifdef DEBUG
+            Serial.println(F("Back to"));
+            #endif // DEBUG
             path_popback();
-            menuInit(getfilelist);
         }
+        menuBack();
     }
     else
     {
@@ -252,9 +328,13 @@ void enterCallback_File(int select)
             char temp[NAME_MAX_LENGTH];
             basefile.getName(temp,NAME_MAX_LENGTH-1);
             basefile.close();
+            if(!SD.chdir(temp,true))
+            {
+                flash();
+                return ;
+            }
             path.add(temp);
-            SD.chdir(temp,true);
-            menuInit(getfilelist);
+            menuInit(getfilelist());
         }
         else // is file
         {
@@ -281,6 +361,8 @@ void enterCallback_File(int select)
             // set control state
             flag_controlState = 0;
             bitSet(flag_controlState,RUNNING);
+            serialCallback = readOkCallback;
+
             // transfer screen
             statusPage();
 
@@ -307,14 +389,18 @@ void act ()
         runtime(millis());
         if(bitRead(flag_controlState,RUNNING))
         {
-            statusSet(STATUS_RUN);
+            //statusSet(STATUS_RUN);
             customtime(millis()-run_start_time);
             progressBar(runfile.curPosition()*100/runfile.fileSize());
         }
         else
         {
             customtime(0);
-            statusSet(STATUS_IDLE);
+            //statusSet(STATUS_IDLE);
+        }
+        if(!bitRead(flag_controlState,WAITING_RESPONSE))
+        {
+            //getStat();
         }
     }
 }
@@ -324,6 +410,7 @@ void homing ()
     if(bitRead(flag_controlState,WAITING_RESPONSE)||bitRead(flag_controlState,RUNNING)) return;
     Serial.println(F("$H"));
     bitSet(flag_controlState, WAITING_RESPONSE);
+    serialCallback = readOkCallback;
 }
 
 void unlock ()
@@ -331,6 +418,18 @@ void unlock ()
     if(bitRead(flag_controlState,WAITING_RESPONSE)||bitRead(flag_controlState,RUNNING)) return;
     Serial.println(F("$X"));
     bitSet(flag_controlState, WAITING_RESPONSE);
+    serialCallback = readOkCallback;
+}
+
+void block()
+{
+    flag_controlState = 0;
+}
+
+void reset ()
+{
+    Serial.write(24); // ctrl+x grbl soft reset
+    flag_controlState = 0;
 }
 
 String getFileName(int index);
@@ -348,7 +447,8 @@ void SDselect ()
         return ;
     }
     path.clear();
-    menuInit(getfilelist(),getFileName,enterCallback_File,enterCallback_Status);
+    menuInit(getfilelist()+1,getFileName,enterCallback_File,enterCallback_Status);
+    key.setCallback(KEY_ENTER,menuEnter);
 }
 
 inline void path_popback()
@@ -360,6 +460,7 @@ inline void path_popback()
     {
         SD.chdir(path[i]);
     }
+    getfilelist();
 }
 
 int getfilelist()
@@ -368,11 +469,11 @@ int getfilelist()
     fileList.clear();
     for(;basefile.openNext(SD.vwd(),O_READ);)
     {
-    if(!basefile.isHidden() && !basefile.isSystem())
-    {
-    fileList.add(basefile.dirIndex());
-    }
-    basefile.close();
+        if(!basefile.isHidden() && !basefile.isSystem())
+        {
+            fileList.add(basefile.dirIndex());
+        }
+        basefile.close();
     }
     fileList.sort(fileCompare);
     return fileList.size();
@@ -413,6 +514,7 @@ bool sendLine()
     }
     Serial.println(buffer);
     bitSet(flag_controlState,WAITING_RESPONSE);
+    serialCallback = readOkCallback;
     return true;
 }
 
@@ -466,12 +568,14 @@ String getFileName(int index)
 {
     if(!index)
     {
-        return PSTR("../");
+        char temp[5];
+        strcpy_P(temp,PSTR("../"));
+        #if defined(DEBUG)
+        Serial.println(F("../"));
+        #endif // defined
+        return String(temp);
     }
     index -= 1;
-    #if defined(DEBUG)
-    Serial.println(F("../"));
-    #endif // defined
     char temp[NAME_MAX_LENGTH];
     SdBaseFile basefile;
     basefile.open(SD.vwd(),fileList[index],O_READ);
@@ -491,10 +595,30 @@ void setup()
     // set grbl baud rate
     Serial.begin(BAUD_RATE);
     Serial.setTimeout(SERIAL_TIMEOUT);
+    serialCallback = serialBufferClear;
 
     // print init to lcd
     LCDScreenInit();
     welcomeDisplay();
+
+    /*Serial.print((int)menu_0);
+    Serial.print('\t');
+    Serial.println((int)((void*)menu_0+6*sizeof(menuTable)));
+    menuTable tt;
+    memcpy_P(&tt,(void*)menu_0+5*sizeof(menuTable),sizeof(menuTable));
+    for(int i=0;i<sizeof(menuTable);i++)
+    {
+        Serial.print(reinterpret_cast<const __FlashStringHelper *>(tt.title));
+        Serial.print('\t');
+        if(!((i+1)%sizeof(menuTable))) Serial.println();
+    }
+    for(int i=0;i<menu_0_length*sizeof(menuTable);i++)
+    {
+        Serial.print(int(pgm_read_byte((void*)menu_0+i)));
+        Serial.print('\t');
+        if(!((i+1)%sizeof(menuTable))) Serial.println();
+    }
+    while(1) ;*/
 
     // start
     delay(1000UL); // pause welcome scene at least 0.5s

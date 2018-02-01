@@ -1,10 +1,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
- #define DEBUG
+// #define DEBUG
 
 #define BAUD_RATE 115200
 #define SERIAL_TIMEOUT 100
+#define SERIAL_BUFFER_LENGTH 32
 // #defint SERIAL_CONECT_TO_COMPUTER
 
 /** LCD **/
@@ -39,7 +40,7 @@
 /** Define the cycle length(ms) of anything. **/
 
 #define KEY_DETECT_CYCLE 10
-#define STATUS_SCREEN_CYCLE 1000
+#define STATUS_SCREEN_CYCLE 200
 
 /** SD card and File **/
 

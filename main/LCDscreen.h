@@ -21,12 +21,90 @@
   #define LCD_CHOOSEN
 #endif // LCD type
 
+
+#if defined(LCD_12864)
+    #define STAT_ROW 2
+    #define STAT_POS 0
+    #define STAT_LENGTH 5
+    #define STAT_X_POS (STAT_LENGTH+3*0)
+    #define STAT_Y_POS (STAT_LENGTH+3*1)
+    #define STAT_Z_POS (STAT_LENGTH+3*2)
+    #define STAT_POS_LENGTH 2
+
+    #define PROGRESSBAR_LENGTH 10
+
+    #define TIME_ROW 1
+    #define TIME_RUN 0
+    #define TIME_CUS (8/2)
+    #define TIME_HRLEN 1
+    #define TIME_MNLEN 2
+    #define TIME_SECLEN 2
+
+#else
+    #define STAT_ROW 2
+    #define STAT_POS 0
+    #define STAT_LENGTH 5
+    #define STAT_X_POS (STAT_LENGTH+5*0)
+    #define STAT_Y_POS (STAT_LENGTH+5*1)
+    #define STAT_Z_POS (STAT_LENGTH+5*2)
+    #define STAT_POS_LENGTH 2
+
+
+    #define PROGRESSBAR_LENGTH 16
+
+    #define TIME_ROW 1
+    #define TIME_RUN 1
+    #define TIME_CUS 11
+    #define TIME_HRLEN 2
+    #define TIME_MNLEN 2
+    #define TIME_SECLEN 2
+
+#endif // 12864
+
+#if defined(LCD_12864)
+const unsigned char mainpage[LCD_SIZE] PROGMEM = {
+    '0','0','<',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','>',
+    '0',':','0','0',':','0','0',' ','0',':','0','0',':','0','0',' ',
+    ' ',' ',' ',' ',' ','X',' ',' ',' ','Y',' ',' ',' ','Z',' ',' ',
+    ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '
+};
+
+const unsigned char welcomepage[LCD_SIZE] PROGMEM = {
+    ' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',' ',
+    ' ',' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',
+    ' ',' ',' ',' ',' ',' ',' ','M','a','d','e',' ','B','y',' ',' ',
+    'L','o','a','d','i','n','g','D','i','m','C','a','s','p','e','r'
+};
+#else
+const unsigned char mainpage[LCD_SIZE] PROGMEM = {
+    '0','0','<',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','>',
+    ' ','0','0',':','0','0',':','0','0',' ',' ','0','0',':','0','0',':','0','0',' ',
+    ' ',' ',' ',' ',' ','X',' ',' ',' ',' ','Y',' ',' ',' ',' ','Z',' ',' ',' ',' ',
+    ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '
+};
+
+const unsigned char welcomepage[LCD_SIZE] PROGMEM = {
+    ' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',' ',' ',' ',' ',' ',
+    ' ',' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',' ',' ',' ',' ',
+    ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','M','a','d','e',' ','B','y',' ',' ',
+    'L','o','a','d','i','n','g','.','.','.',' ','D','i','m','C','a','s','p','e','r'
+};
+#endif // 12864
+
+typedef struct status
+{
+    char stat[STAT_LENGTH+1];
+    int8_t x;
+    int8_t y;
+    int8_t z;
+};
+
 typedef int format_t;
 #define ALIGN_L 0
 #define ALIGN_R 1
 
 typedef struct {
-    char title[LCD_COLS+1];
+    char title[16+1];
     void* pointto;
     bool hasSubmenu;
     int16_t submenuLength;
@@ -40,6 +118,7 @@ typedef struct {
     bool menuInit(int _length,menuTable* table);
     bool menuInit(int _length,String (*_getLine)(int) = nullptr,void (*_enterCallback)(int) = nullptr,void (*endCallback)() = nullptr);
     void menuPrint(bool datamem = NORMALDATA);
+    void menuPrint(String (*_getLine)(int));
     void menuDisplay(const char*,uint8_t,bool datamem = NORMALDATA);//內容，行，內容位置顯示
     void menuDisplay(String,uint8_t,bool datamem = NORMALDATA);
     void menuUp();
@@ -66,7 +145,9 @@ typedef struct {
     void progressBar(int8_t);
     void runtime(uint32_t);
     void customtime(uint32_t);
-    void statusSet(uint8_t);
+    void statSet(String);
+    void ststSet(char*);
+    void statSet(const status*);
 
     void printline(const char *str,uint8_t line = 0,format_t format = ALIGN_L);
     void printline_P(const char *str,uint8_t line = 0);
@@ -76,76 +157,5 @@ typedef struct {
     //未用到
     void printf(int value,int width,bool zero = false);
     // void printf(const char *str,int width,format_t format = ALIGN_L);
-
-
-#define STATUS_IDLE 0
-#define STATUS_RUN  1
-#define STATUS_STOP 2
-
-#if defined(LCD_12864)
-    #define STATUS_ROW 2
-    #define STATUS_IDLE_POS 0
-    #define STATUS_RUN_POS  0
-    #define STATUS_STOP_POS 0
-    #define STATUS_LENGTH 5
-
-    #define PROGRESSBAR_LENGTH 10
-
-    #define TIME_ROW 1
-    #define TIME_RUN 0
-    #define TIME_CUS (8/2)
-    #define TIME_HRLEN 1
-    #define TIME_MNLEN 2
-    #define TIME_SECLEN 2
-
-const unsigned char statusString[16+1] PROGMEM = " IDLE RUN  STOP";
-#else
-    #define STATUS_ROW 2
-    #define STATUS_IDLE_POS 13
-    #define STATUS_RUN_POS  2
-    #define STATUS_STOP_POS 7
-    #define STATUS_LENGTH 6
-
-    #define PROGRESSBAR_LENGTH 16
-
-    #define TIME_ROW 1
-    #define TIME_RUN 1
-    #define TIME_CUS 11
-    #define TIME_HRLEN 2
-    #define TIME_MNLEN 2
-    #define TIME_SECLEN 2
-
-const unsigned char statusString[18+1] PROGMEM = " IDLE   RUN  STOP ";
-#endif // 12864
-
-#if defined(LCD_12864)
-const unsigned char mainpage[LCD_SIZE] PROGMEM = {
-    '0','0','<',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','>',
-    '0',':','0','0',':','0','0',' ','0',':','0','0',':','0','0',' ',
-    ' ',' ',' ',' ',' ',' ',' ',' ',' ','I','D','L','E',' ',' ',' ',
-    ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '
-};
-
-const unsigned char welcomepage[LCD_SIZE] PROGMEM = {
-    ' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',' ',
-    ' ',' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',
-    ' ',' ',' ',' ',' ',' ',' ','M','a','d','e',' ','B','y',' ',' ',
-    'L','o','a','d','i','n','g','D','i','m','C','a','s','p','e','r'
-};
-#else
-const unsigned char mainpage[LCD_SIZE] PROGMEM = {
-    '0','0','<',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','>',
-    ' ','0','0',':','0','0',':','0','0',' ',' ','0','0',':','0','0',':','0','0',' ',
-    ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','I','D','L','E',' ',' ',
-    ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '
-};
-
-const unsigned char welcomepage[LCD_SIZE] PROGMEM = {
-    ' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',' ',' ',' ',' ',' ',
-    ' ',' ',' ',0xE5,0xDF,0x56,0xDF,0x29,0xDF,0x56,0xDF,0x29,0xE5,' ',' ',' ',' ',' ',' ',' ',
-    ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','M','a','d','e',' ','B','y',' ',' ',
-    'L','o','a','d','i','n','g','.','.','.',' ','D','i','m','C','a','s','p','e','r'
-};
-#endif // 12864
 
 #endif // LCDSCREEN_H_INCLUDED

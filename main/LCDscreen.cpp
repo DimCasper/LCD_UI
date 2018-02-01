@@ -91,7 +91,7 @@ void menuPrint(bool datamem = NORMALDATA)
 {
     clear();
     menuCursorMove(menu_stack.end()->item_cursor);
-    for(int row=0;row<_rows&&row<menu_stack.end()->item_length;row++)
+    for(int row=0;row<_rows&&row+menu_stack.end()->item_head<menu_stack.end()->item_length;row++)
     {
         #ifdef DEBUG
         Serial.print(F("Row:"));
@@ -99,8 +99,14 @@ void menuPrint(bool datamem = NORMALDATA)
         Serial.print(F("\tText:"));
         Serial.println(getLine(row));
         #endif // DEBUG
-        menuDisplay(getLine(row),row,datamem);
+        menuDisplay(getLine(row+menu_stack.end()->item_head),row,datamem);
     }
+}
+
+void menuPrint(String (*_getLine)(int))
+{
+    getLine = _getLine;
+    menuPrint();
 }
 
 bool menuInit()
@@ -120,9 +126,9 @@ bool menuInit(int _length,String (*_getLine)(int),void (*_enterCallback)(int),vo
 {
     menuInit();
     menu_stack.end()->item_length = _length;
-    if(!_getLine) getLine = _getLine;
-    if(!_enterCallback) menuEnterCallback = _enterCallback;
-    if(!_endCallback) menuEndCallback = _endCallback;
+    if(_getLine) getLine = _getLine;
+    if(_enterCallback) menuEnterCallback = _enterCallback;
+    if(_endCallback) menuEndCallback = _endCallback;
     menuPrint();
     return true;
 }
@@ -181,8 +187,8 @@ void menuDisplay(const char* item, uint8_t row, bool datamem)
 String menuTableGetLine(int line)
 {
     menuTable tempItem;
-    memcpy_P(&tempItem, (menu_stack.end()->menuptr)+(menu_stack.end()->item_head+line)*sizeof(menuTable),sizeof(menuTable));
-    return String(tempItem.title);
+    memcpy_P(&tempItem, (menu_stack.end()->menuptr)+(line)*sizeof(menuTable),sizeof(menuTable));
+    return String((tempItem.title));// reinterpret_cast<const __FlashStringHelper *>
 }
 
 void menuTableEnter()
@@ -222,7 +228,7 @@ void menuUp()
     }
     if(!menu_stack.end()->item_cursor)
     {
-        menu_stack.end()->item_head--;
+        (menu_stack.end()->item_head)--;
         menuPageUp(getLine(menu_stack.end()->item_head));
         return;
     }
@@ -241,8 +247,8 @@ void menuDown()
     }
     if(menu_stack.end()->item_cursor+1==_rows)
     {
-        menu_stack.end()->item_head++;
-        menuPageUp(getLine(menu_stack.end()->item_head+menu_stack.end()->item_cursor));
+        (menu_stack.end()->item_head)++;
+        menuPageDown(getLine(menu_stack.end()->item_head+menu_stack.end()->item_cursor));
         return;
     }
     menuCursorDown();
@@ -319,11 +325,11 @@ void menuPageDown(String item)
 
 void menuPageDown(const char *item)
 {
-    for(int j=2;j<=_rows;j++)
+    for(int j=1;j<_rows;j++)
     {
-        menuDisplay(displaymem+1+_cols*(j-1),j-1);
+        menuDisplay(displaymem+2+_cols*j,j-1);
     }
-    menuDisplay(item,_rows);
+    menuDisplay(item,_rows-1);
 }
 
 void menuPageUp(String item)
@@ -333,11 +339,11 @@ void menuPageUp(String item)
 
 void menuPageUp(const char *item)
 {
-    for(int j=_rows-1;j>=1;j--)
+    for(int j=_rows-1-1;j>=0;j--)
     {
-        menuDisplay(displaymem+1+_cols*(j-1),j+1);
+        menuDisplay(displaymem+2+_cols*j,j+1);
     }
-    menuDisplay(item,1);
+    menuDisplay(item,0);
 }
 
 /************************
@@ -365,36 +371,56 @@ void statusDisplay()
     }
     runtime(millis());
     customtime(millis());
-    statusSet(STATUS_IDLE);
 
 }
 
-#define STATUS_SET(STATUS) \
-    if(status_code == STATUS) \
-    { \
-        for(uint8_t i=0;i<STATUS_LENGTH;i++) \
-        { \
-            tmp = pgm_read_byte(statusString+STATUS*STATUS_LENGTH+i); \
-            displaymem[_cols*2+2+STATUS*6+i] = tmp; \
-            lcdsc.write(tmp); \
-        } \
-    } \
-    else \
-    { \
-        for(uint8_t i=0;i<STATUS_LENGTH;i++) \
-        { \
-            displaymem[_cols*2+2+STATUS*STATUS_LENGTH+i] = ' '; \
-            lcdsc.write(' '); \
-        } \
-    }
-
-void statusSet(uint8_t status_code = STATUS_IDLE)
+void statSet(char* stat)
 {
-    char tmp;
-    lcdsc.setCursor(STATUS_IDLE_POS,STATUS_ROW);
-    STATUS_SET(STATUS_IDLE);
-    STATUS_SET(STATUS_RUN);
-    STATUS_SET(STATUS_STOP);
+    lcdsc.setCursor(STAT_POS,STAT_ROW);
+    for(int i=0;i<STAT_LENGTH&&(*stat);i++,stat++)
+    {
+        lcdsc.write(*stat);
+    }
+}
+
+void statSet(String stat)
+{
+    statSet(stat.c_str());
+}
+
+void statSet(const status *s)
+{
+    statSet(s->stat);
+    #if defined(LCD_12864)
+    lcdsc.setCursor((STAT_X_POS+1)/2,STAT_ROW);
+    if((STAT_X_POS+1)%2)
+    {
+        lcdsc.write(displaymem[STAT_ROW*_cols+(STAT_X_POS+1)-1]);
+    }
+    #else
+    lcdsc.setCursor((STAT_X_POS+1),STAT_ROW);
+    #endif // 12864
+    printf(s->x,STAT_POS_LENGTH);
+    #if defined(LCD_12864)
+    lcdsc.setCursor((STAT_Y_POS+1)/2,STAT_ROW);
+    if((STAT_Y_POS+1)%2)
+    {
+        lcdsc.write(displaymem[STAT_ROW*_cols+(STAT_Y_POS+1)-1]);
+    }
+    #else
+    lcdsc.setCursor((STAT_Y_POS+1),STAT_ROW);
+    #endif // 12864
+    printf(s->y,STAT_POS_LENGTH);
+    #if defined(LCD_12864)
+    lcdsc.setCursor((STAT_Z_POS+1)/2,STAT_ROW);
+    if((STAT_Z_POS+1)%2)
+    {
+        lcdsc.write(displaymem[STAT_ROW*_cols+(STAT_Z_POS+1)-1]);
+    }
+    #else
+    lcdsc.setCursor((STAT_Z_POS+1),STAT_ROW);
+    #endif // 12864
+    printf(s->z,STAT_POS_LENGTH);
 }
 
 void progressBar(int8_t progress)
